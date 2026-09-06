@@ -7,7 +7,6 @@ def init_db():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
     
-    # Таблица модераторов (без фейковых людей, пустая для старта)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS moderators (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +24,6 @@ def init_db():
         )
     """)
     
-    # Таблица неактивов
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS inactives (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +34,6 @@ def init_db():
         )
     """)
     
-    # Таблица магазина
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS shop (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,12 +43,11 @@ def init_db():
         )
     """)
     
-    # Добавим дефолтные товары в магазин Prime, если он пустой
     cursor.execute("SELECT COUNT(*) FROM shop")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO shop (item_name, price, description) VALUES (?, ?, ?)", ("Снять выговор", 150, "Полное аннулирование активного выговора"))
         cursor.execute("INSERT INTO shop (item_name, price, description) VALUES (?, ?, ?)", ("Иммунитет от пред. на 3 дня", 100, "Защита от получения предупреждений"))
-        cursor.execute("INSERT INTO shop (item_name, price, description) VALUES (?, ?, ?)", ("Пакет балов (+50)", 200, "Мгновенное начисление баллов на баланс"))
+        cursor.execute("INSERT INTO shop (item_name, price, description) VALUES (?, ?, ?)", ("Пакет баллов (+50)", 200, "Мгновенное начисление баллов на баланс"))
 
     conn.commit()
     conn.close()
@@ -66,117 +62,102 @@ MAIN_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <title>Arizona Hub & Prime — Панель управления</title>
+    <!-- Подключаем премиальный современный шрифт Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #060709;
-            --bg-surface: #0d0f17;
-            --bg-card: #12151f;
-            --border-color: #1f2433;
+            --bg-base: #040507;
+            --bg-surface: #0b0e14;
+            --bg-card: #10141d;
+            --border-color: #1a202c;
             --accent-primary: #f59e0b;
-            --accent-glow: rgba(245, 158, 11, 0.25);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
+            --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            --accent-glow: rgba(245, 158, 11, 0.3);
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
             --success: #10b981;
             --danger: #ef4444;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; position: relative; }
 
-        /* Летающий интерактивный фон (частицы/анимация) */
-        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; display: block; list-style: none; width: 4px; height: 4px; background: rgba(245, 158, 11, 0.4); box-shadow: 0 0 10px var(--accent-primary); border-radius: 50%; animation: animate 25s linear infinite; bottom: -150px; }
-        .particle:nth-child(1) { left: 25%; width: 6px; height: 6px; animation-delay: 0s; }
-        .particle:nth-child(2) { left: 10%; width: 3px; height: 3px; animation-delay: 2s; animation-duration: 12s; }
-        .particle:nth-child(3) { left: 70%; width: 5px; height: 5px; animation-delay: 4s; }
-        .particle:nth-child(4) { left: 40%; width: 4px; height: 4px; animation-delay: 0s; animation-duration: 18s; }
-        .particle:nth-child(5) { left: 65%; width: 6px; height: 6px; animation-delay: 3s; }
-        .particle:nth-child(6) { left: 85%; width: 3px; height: 3px; animation-delay: 5s; }
-
-        @keyframes animate {
-            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; }
-        }
+        /* Живой фон с летающими частицами через Canvas */
+        #particleCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 
         /* Сайдбар */
-        .sidebar { width: 260px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px; z-index: 10; backdrop-filter: blur(10px); }
-        .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 35px; display: flex; align-items: center; gap: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
-        .brand span { color: var(--accent-primary); text-shadow: 0 0 20px var(--accent-glow); }
+        .sidebar { width: 270px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 28px; z-index: 10; backdrop-filter: blur(12px); }
+        .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; letter-spacing: -0.3px; text-transform: uppercase; }
+        .brand span { color: var(--accent-primary); text-shadow: 0 0 25px var(--accent-glow); }
         
-        .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 1.5px; font-weight: 600; }
-        .nav-link { padding: 12px 16px; border-radius: 12px; color: var(--text-muted); text-decoration: none; margin-bottom: 6px; display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 500; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
-        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.02)); color: #fff; border-color: rgba(245, 158, 11, 0.3); transform: translateX(4px); box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1); }
+        .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 1.5px; font-weight: 700; }
+        .nav-link { padding: 13px 18px; border-radius: 14px; color: var(--text-muted); text-decoration: none; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
+        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.01)); color: #fff; border-color: rgba(245, 158, 11, 0.25); transform: translateX(6px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.08); }
 
         /* Контент */
-        .main-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 35px; z-index: 10; position: relative; }
+        .main-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 40px; z-index: 10; position: relative; }
         
-        .top-bar { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px 30px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
-        .top-title { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px 32px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); backdrop-filter: blur(10px); }
+        .top-title { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; letter-spacing: -0.5px; }
         
-        /* Кнопки с анимацией */
-        .btn-action { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 700; padding: 12px 24px; border-radius: 12px; border: none; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
-        .btn-action:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5); background: linear-gradient(135deg, #fbbf24, #f59e0b); }
-        .btn-action:active { transform: translateY(1px) scale(0.98); }
+        /* Супер-анимированные кнопки */
+        .btn-action { background: var(--accent-gradient); color: #000; font-weight: 700; padding: 13px 26px; border-radius: 14px; border: none; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; overflow: hidden; }
+        .btn-action:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 30px rgba(245, 158, 11, 0.5); filter: brightness(1.1); }
+        .btn-action:active { transform: translateY(-1px) scale(0.97); }
 
         /* Вкладки */
         .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.4s ease forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content.active { display: block; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Карточки и сетка */
-        .content-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 18px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        /* Карточки */
+        .content-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
         .grid-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
-        .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 22px; border-radius: 16px; position: relative; overflow: hidden; }
-        .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%); pointer-events: none; }
-        .stat-title { font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; letter-spacing: 1px; }
-        .stat-value { font-size: 28px; font-weight: 800; color: #fff; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 25px; border-radius: 16px; position: relative; overflow: hidden; transition: 0.3s; }
+        .stat-card:hover { border-color: rgba(245, 158, 11, 0.3); transform: translateY(-3px); }
+        .stat-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; }
+        .stat-value { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -1px; }
 
         /* Таблицы */
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
-        th { color: var(--text-muted); font-weight: 600; padding: 14px 12px; border-bottom: 1px solid var(--border-color); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-        td { padding: 16px 12px; border-bottom: 1px solid rgba(31, 36, 51, 0.4); color: #d1d5db; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        th { color: var(--text-muted); font-weight: 700; padding: 14px 16px; border-bottom: 1px solid var(--border-color); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 18px 16px; border-bottom: 1px solid rgba(26, 32, 44, 0.5); color: #cbd5e1; }
         tr:hover td { background-color: rgba(255, 255, 255, 0.015); }
         
-        .user-block { display: flex; align-items: center; gap: 12px; font-weight: 600; color: #fff; }
-        .avatar-stub { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #1f2433, #12151f); display: flex; align-items: center; justify-content: center; font-size: 15px; border: 1px solid var(--border-color); }
-        .lvl-pill { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-primary); padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
+        .user-block { display: flex; align-items: center; gap: 14px; font-weight: 600; color: #fff; }
+        .avatar-stub { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #1a202c, #10141d); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid var(--border-color); }
+        .lvl-pill { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-primary); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; }
 
-        /* Магазин сетка */
+        /* Магазин */
         .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .shop-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; }
-        .shop-item:hover { border-color: rgba(245, 158, 11, 0.4); transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
-        .shop-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-        .shop-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
-        .shop-price { font-size: 18px; font-weight: 800; color: var(--accent-primary); margin-bottom: 15px; }
+        .shop-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .shop-item:hover { border-color: rgba(245, 158, 11, 0.4); transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .shop-name { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .shop-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+        .shop-price { font-size: 19px; font-weight: 800; color: var(--accent-primary); margin-bottom: 16px; }
 
-        /* Модальные окна */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 1000; }
-        .modal.active { display: flex; animation: fadeInModal 0.3s ease; }
-        @keyframes fadeInModal { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .modal-content { background: var(--bg-surface); border: 1px solid var(--border-color); width: 450px; padding: 30px; border-radius: 20px; box-shadow: 0 25px 50px rgba(0,0,0,0.7); }
-        .modal-header { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
-        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; transition: 0.2s; }
-        .close-btn:hover { color: #fff; }
+        /* Модальные окна с плавной анимацией появления */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); justify-content: center; align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; }
+        .modal.active { display: flex; opacity: 1; }
+        .modal-content { background: var(--bg-surface); border: 1px solid var(--border-color); width: 460px; padding: 35px; border-radius: 22px; box-shadow: 0 30px 60px rgba(0,0,0,0.8); transform: scale(0.92); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .modal.active .modal-content { transform: scale(1); }
         
-        .form-group { margin-bottom: 15px; }
-        .form-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.5px; }
-        .form-input, .form-select { width: 100%; background: var(--bg-base); border: 1px solid var(--border-color); padding: 12px 15px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; transition: 0.3s; }
-        .form-input:focus, .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 15px var(--accent-glow); }
-        .form-submit { width: 100%; margin-top: 10px; padding: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 700; border: none; border-radius: 12px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: 0.3s; box-shadow: 0 4px 15px rgba(245,158,11,0.3); }
-        .form-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,158,11,0.5); }
+        .modal-header { font-size: 19px; font-weight: 700; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; color: #fff; letter-spacing: -0.5px; }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; transition: 0.2s; }
+        .close-btn:hover { color: #fff; transform: scale(1.1); }
+        
+        .form-group { margin-bottom: 18px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.8px; }
+        .form-input, .form-select { width: 100%; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .form-input:focus, .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(11, 14, 20, 0.8); }
+        .form-submit { width: 100%; margin-top: 12px; padding: 15px; background: var(--accent-gradient); color: #000; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
+        .form-submit:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(245,158,11,0.5); filter: brightness(1.05); }
     </style>
 </head>
 <body>
 
-    <!-- Летающие неоновые частицы на фоне -->
-    <ul class="particles">
-        <li class="particle"></li>
-        <li class="particle"></li>
-        <li class="particle"></li>
-        <li class="particle"></li>
-        <li class="particle"></li>
-        <li class="particle"></li>
-    </ul>
+    <!-- Живой фоновый Canvas для летающих частиц -->
+    <canvas id="particleCanvas"></canvas>
 
     <div class="sidebar">
         <div class="brand">⚡ <span>Arizona Hub & Prime</span></div>
@@ -237,7 +218,7 @@ MAIN_TEMPLATE = """
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 40px;">Список модераторов пуст. Нажмите кнопку «Добавить модератора» вверху.</td>
+                                <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 50px;">Список модераторов пуст. Нажмите кнопку «Добавить модератора» вверху.</td>
                             </tr>
                         {% endif %}
                     </tbody>
@@ -265,7 +246,7 @@ MAIN_TEMPLATE = """
                 </div>
             </div>
             <div class="content-card">
-                <p style="color: var(--text-muted); text-align: center; padding: 20px;">Интерактивные графики и подробные метрики активности будут наполняться по мере работы бота.</p>
+                <p style="color: var(--text-muted); text-align: center; padding: 25px;">Интерактивные метрики и аналитика активности обновляются в реальном времени.</p>
             </div>
         </div>
 
@@ -297,7 +278,7 @@ MAIN_TEMPLATE = """
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 40px;">Активных запросов на неактив нет.</td>
+                                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 50px;">Активных запросов на неактив нет.</td>
                             </tr>
                         {% endif %}
                     </tbody>
@@ -319,7 +300,7 @@ MAIN_TEMPLATE = """
                     </div>
                     <div>
                         <div class="shop-price">⭐ {{ item[2] }} баллов</div>
-                        <button class="btn-action" style="width: 100%;" onclick="alert('Покупка товара доступна после привязки Discord аккаунта!')">Приобрести</button>
+                        <button class="btn-action" style="width: 100%;" onclick="alert('Для совершения покупки привяжите Discord аккаунт!')">Приобрести</button>
                     </div>
                 </div>
                 {% endfor %}
@@ -338,15 +319,15 @@ MAIN_TEMPLATE = """
             <form action="/add" method="POST">
                 <div class="form-group">
                     <label class="form-label">Никнейм в Discord</label>
-                    <input type="text" name="username" class="form-input" required placeholder="Например: Ryo Weather">
+                    <input type="text" name="username" class="form-input" required placeholder="Введите никнейм...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Discord ID</label>
-                    <input type="text" name="discord_id" class="form-input" required placeholder="146258648225457743">
+                    <input type="text" name="discord_id" class="form-input" required placeholder="Введите ID пользователя...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Имя</label>
-                    <input type="text" name="real_name" class="form-input" required placeholder="Никита">
+                    <input type="text" name="real_name" class="form-input" required placeholder="Введите имя...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Уровень модерации</label>
@@ -362,7 +343,7 @@ MAIN_TEMPLATE = """
                 </div>
                 <div class="form-group">
                     <label class="form-label">Должность / Роль</label>
-                    <input type="text" name="position" class="form-input" required placeholder="Куратор Модерации">
+                    <input type="text" name="position" class="form-input" required placeholder="Укажите должность...">
                 </div>
                 <button type="submit" class="form-submit">Сохранить модератора</button>
             </form>
@@ -379,15 +360,15 @@ MAIN_TEMPLATE = """
             <form action="/add_inactive" method="POST">
                 <div class="form-group">
                     <label class="form-label">Ваш Никнейм</label>
-                    <input type="text" name="moderator" class="form-input" required placeholder="Ryo Weather">
+                    <input type="text" name="moderator" class="form-input" required placeholder="Ваш никнейм в игре/дискорде...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Причина</label>
-                    <input type="text" name="reason" class="form-input" required placeholder="Семейные обстоятельства / Экзамены">
+                    <input type="text" name="reason" class="form-input" required placeholder="Укажите причину неактива...">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Сроки (например, с 06.09 по 10.09)</label>
-                    <input type="text" name="dates" class="form-input" required placeholder="06.09 - 10.09 (4 дня)">
+                    <label class="form-label">Сроки</label>
+                    <input type="text" name="dates" class="form-input" required placeholder="Например: 06.09 - 10.09">
                 </div>
                 <button type="submit" class="form-submit">Отправить заявку</button>
             </form>
@@ -395,6 +376,62 @@ MAIN_TEMPLATE = """
     </div>
 
     <script>
+        /* Скрипт для анимированных летающих частиц на Canvas */
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particlesArray = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2.5 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.6;
+                this.speedY = (Math.random() - 0.5) * 0.6;
+                this.opacity = Math.random() * 0.5 + 0.2;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(245, 158, 11, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            let count = Math.floor((canvas.width * canvas.height) / 15000);
+            for (let i = 0; i < count; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+        initParticles();
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particlesArray.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
         function switchTab(tabId, element) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
