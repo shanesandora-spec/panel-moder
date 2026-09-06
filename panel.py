@@ -7,6 +7,7 @@ import requests
 # --- НАСТРОЙКИ DISCORD OAUTH2 ---
 CLIENT_ID = "1545765992582479872"
 CLIENT_SECRET = "ТВОЙ_CLIENT_SECRET"
+DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
 
 # Автоматически определяем, локально мы или на Render
 BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:5000")
