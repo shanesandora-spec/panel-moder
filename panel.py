@@ -61,7 +61,7 @@ MAIN_TEMPLATE = """
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Arizona Hub & Prime — Панель управления</title>
+    <title>Arizona Staff Hub — Панель управления</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -83,7 +83,7 @@ MAIN_TEMPLATE = """
 
         #particleCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 
-        /* Сайдбар премиум */
+        /* Сайдбар */
         .sidebar { width: 280px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 32px 24px; z-index: 10; backdrop-filter: blur(16px); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
         .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 40px; display: flex; align-items: center; gap: 12px; letter-spacing: -0.3px; text-transform: uppercase; }
         .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b, #b45309); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px var(--accent-glow); }
@@ -91,7 +91,6 @@ MAIN_TEMPLATE = """
         
         .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 1.5px; font-weight: 700; }
         
-        /* Просторная навигация */
         .nav-links-container { display: flex; flex-direction: column; gap: 10px; }
         .nav-link { padding: 15px 20px; border-radius: 14px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 16px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
         .nav-link svg { width: 18px; height: 18px; fill: var(--text-muted); transition: 0.3s; }
@@ -104,17 +103,14 @@ MAIN_TEMPLATE = """
         .top-bar { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px 32px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); backdrop-filter: blur(10px); }
         .top-title { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; letter-spacing: -0.5px; }
         
-        /* Анимированные кнопки */
         .btn-action { background: var(--accent-gradient); color: #000; font-weight: 700; padding: 13px 26px; border-radius: 14px; border: none; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; overflow: hidden; }
         .btn-action:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 30px rgba(245, 158, 11, 0.5); filter: brightness(1.1); }
         .btn-action:active { transform: translateY(-1px) scale(0.97); }
 
-        /* Вкладки */
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Карточки */
         .content-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
         .grid-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 25px; border-radius: 16px; position: relative; overflow: hidden; transition: 0.3s; }
@@ -122,7 +118,6 @@ MAIN_TEMPLATE = """
         .stat-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; }
         .stat-value { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -1px; }
 
-        /* Таблицы */
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
         th { color: var(--text-muted); font-weight: 700; padding: 14px 16px; border-bottom: 1px solid var(--border-color); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         td { padding: 18px 16px; border-bottom: 1px solid rgba(33, 41, 58, 0.5); color: #cbd5e1; }
@@ -132,7 +127,6 @@ MAIN_TEMPLATE = """
         .avatar-stub { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #1a2333, #0f131d); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid var(--border-color); }
         .lvl-pill { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-primary); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; }
 
-        /* Магазин */
         .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .shop-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .shop-item:hover { border-color: rgba(245, 158, 11, 0.4); transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
@@ -140,7 +134,7 @@ MAIN_TEMPLATE = """
         .shop-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
         .shop-price { font-size: 19px; font-weight: 800; color: var(--accent-primary); margin-bottom: 16px; }
 
-        /* Кастомный селект без скроллбара, с плавными анимациями */
+        /* Убран скроллбар, анимации для всех элементов одинаковые, стандартный вид */
         .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
         .custom-select { position: relative; display: flex; align-items: center; justify-content: space-between; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: #fff; transition: 0.3s; }
         .custom-select:hover { border-color: rgba(245, 158, 11, 0.5); }
@@ -153,7 +147,8 @@ MAIN_TEMPLATE = """
         
         .custom-option { padding: 12px 16px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: all 0.2s ease; border-bottom: 1px solid rgba(33, 41, 58, 0.4); opacity: 0; transform: translateY(-4px); }
         .custom-options.open .custom-option { opacity: 1; transform: translateY(0); }
-        /* Плавная каскадная анимация пунктов списка */
+        
+        /* Единая плавная каскадная анимация для каждого пункта */
         .custom-options.open .custom-option:nth-child(1) { transition-delay: 0.03s; }
         .custom-options.open .custom-option:nth-child(2) { transition-delay: 0.06s; }
         .custom-options.open .custom-option:nth-child(3) { transition-delay: 0.09s; }
@@ -165,7 +160,6 @@ MAIN_TEMPLATE = """
         .custom-option:last-child { border-bottom: none; }
         .custom-option:hover { background: rgba(245, 158, 11, 0.12); color: #fff; padding-left: 20px; }
 
-        /* Модальные окна */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); justify-content: center; align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; }
         .modal.active { display: flex; opacity: 1; }
         .modal-content { background: var(--bg-surface); border: 1px solid var(--border-color); width: 460px; padding: 35px; border-radius: 22px; box-shadow: 0 30px 60px rgba(0,0,0,0.8); transform: scale(0.92); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -190,9 +184,10 @@ MAIN_TEMPLATE = """
     <div class="sidebar">
         <div class="brand">
             <div class="brand-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <!-- Заменена молния на кастомный щит/звезду управления -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
             </div>
-            Arizona <span>Hub & Prime</span>
+            Arizona <span>Staff Hub</span>
         </div>
         <div class="menu-label">Навигация</div>
         <div class="nav-links-container">
@@ -378,7 +373,7 @@ MAIN_TEMPLATE = """
                 </div>
                 <div class="form-group">
                     <label class="form-label">Уровень модерации</label>
-                    <!-- Кастомный селект с новыми уровнями и единой плавной анимацией -->
+                    <!-- Кастомный селект: исправлены уровни, убран скроллбар справа, унифицированы анимации -->
                     <div class="custom-select-wrapper" id="customSelect">
                         <div class="custom-select" onclick="toggleCustomSelect(this)">
                             <span>1 Уровень — Модератор</span>
@@ -389,7 +384,7 @@ MAIN_TEMPLATE = """
                             <div class="custom-option" onclick="selectOption(this, '2')">2 Уровень — Старший Модератор</div>
                             <div class="custom-option" onclick="selectOption(this, '3')">3 Уровень — Куратор</div>
                             <div class="custom-option" onclick="selectOption(this, '4')">4 Уровень — Заместитель Главного Модератора</div>
-                            <div class="custom-option" onclick="selectOption(this, '5')">5 Уровень — Главный Администратор</div>
+                            <div class="custom-option" onclick="selectOption(this, '5')">5 Уровень — Главный Модератор</div>
                             <div class="custom-option" onclick="selectOption(this, '6')">6 Уровень — Технический специалист</div>
                             <div class="custom-option" onclick="selectOption(this, '7')">7 Уровень — Руководство Discord</div>
                         </div>
@@ -431,7 +426,6 @@ MAIN_TEMPLATE = """
     </div>
 
     <script>
-        /* Скрипт для кастомного селекта уровня */
         function toggleCustomSelect(element) {
             element.classList.toggle('open');
             element.nextElementSibling.classList.toggle('open');
@@ -502,16 +496,6 @@ MAIN_TEMPLATE = """
         }
         initParticles();
 
-        function animateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particlesArray.px ? null : particlesArray.forEach(p => {
-                p.update();
-                p.draw();
-            });
-            requestAnimationFrame(animateParticles);
-        }
-        
-        // Исправленный цикл анимации частиц
         function runAnimation() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             particlesArray.forEach(p => {
