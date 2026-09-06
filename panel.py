@@ -147,7 +147,7 @@ MAIN_TEMPLATE = """
         .custom-select::after { content: '▼'; font-size: 10px; color: var(--text-muted); transition: transform 0.3s; }
         .custom-select.open::after { transform: rotate(180deg); color: var(--accent-primary); }
         
-        .custom-options { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; display: none; z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); animation: fadeIn 0.2s ease; }
+        .custom-options { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow-y: auto; max-height: 220px; display: none; z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); animation: fadeIn 0.2s ease; }
         .custom-options.open { display: block; }
         .custom-option { padding: 12px 16px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid rgba(26, 32, 44, 0.4); }
         .custom-option:last-child { border-bottom: none; }
@@ -361,7 +361,7 @@ MAIN_TEMPLATE = """
                 </div>
                 <div class="form-group">
                     <label class="form-label">Уровень модерации</label>
-                    <!-- Кастомный красивый селект вместо стандартного браузерного -->
+                    <!-- Кастомный селект со всеми 7 уровнями -->
                     <div class="custom-select-wrapper" id="customSelect">
                         <div class="custom-select" onclick="toggleCustomSelect(this)">1 Уровень — Модератор</div>
                         <div class="custom-options">
@@ -369,6 +369,9 @@ MAIN_TEMPLATE = """
                             <div class="custom-option" onclick="selectOption(this, '2')">2 Уровень — Старший Модератор</div>
                             <div class="custom-option" onclick="selectOption(this, '3')">3 Уровень — Куратор</div>
                             <div class="custom-option" onclick="selectOption(this, '4')">4 Уровень — Заместитель Главного Модератора</div>
+                            <div class="custom-option" onclick="selectOption(this, '5')">5 Уровень — Главный Модератор</div>
+                            <div class="custom-option" onclick="selectOption(this, '6')">6 Уровень — Заместитель Главного Администратора</div>
+                            <div class="custom-option" onclick="selectOption(this, '7')">7 Уровень — Главный Администратор</div>
                         </div>
                         <input type="hidden" name="lvl" id="lvlInput" value="1">
                     </div>
