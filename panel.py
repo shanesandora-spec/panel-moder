@@ -1,6 +1,14 @@
+from datetime import datetime
 import os
 import sqlite3
-from flask import Flask, render_template_string, request, redirect, url_for, jsonify
+from flask import Flask, jsonify, redirect, render_template_string, request, session, url_for
+import requests
+
+# --- НАСТРОЙКИ DISCORD OAUTH2 ---
+CLIENT_ID = "1545765992582479872"
+CLIENT_SECRET = "ТВОЙ_CLIENT_SECRET"  # Вставь свой Client Secret со скриншота
+REDIRECT_URI = "http://localhost:5000/auth/callback"
+DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
 
 # --- БАЗА ДАННЫХ ---
 def init_db():
@@ -28,12 +36,11 @@ def init_db():
         )
     """)
     
-    # Таблица для истории модератора (выговоры, преды, покупки)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS moderator_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             moderator_id INTEGER,
-            type TEXT, -- 'warning', 'prev', 'purchase'
+            type TEXT,
             description TEXT,
             date TEXT
         )
@@ -60,7 +67,6 @@ def init_db():
         )
     """)
     
-    # Проверка и заполнение магазина новыми крутыми товарами
     cursor.execute("SELECT COUNT(*) FROM shop")
     if cursor.fetchone()[0] == 0:
         default_shop = [
@@ -80,7 +86,51 @@ def init_db():
 
 init_db()
 
-app = Flask("")
+app = Flask(__name__)
+app.secret_key = "arizona_staff_hub_secret_key_change_me"
+
+# --- ШАБЛОН СТРАНИЦЫ ВХОДА ---
+LOGIN_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Arizona Staff Hub — Вход</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #07090e;
+            --bg-surface: #0f131d;
+            --border-color: #21293a;
+            --accent-primary: #f59e0b;
+            --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            --accent-glow: rgba(245, 158, 11, 0.25);
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; justify-content: center; align-items: center; overflow: hidden; }
+        .login-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); padding: 45px; border-radius: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); width: 400px; backdrop-filter: blur(16px); }
+        .brand-icon { width: 50px; height: 50px; background: linear-gradient(135deg, #f59e0b, #b45309); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 25px var(--accent-glow); }
+        h1 { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px; text-transform: uppercase; letter-spacing: -0.5px; }
+        h1 span { color: var(--accent-primary); }
+        p { font-size: 13px; color: var(--text-muted); margin-bottom: 30px; line-height: 1.5; }
+        .btn-discord { background: #5865F2; color: #fff; font-weight: 700; padding: 14px 24px; border-radius: 14px; border: none; cursor: pointer; font-size: 14px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4); transition: 0.3s; }
+        .btn-discord:hover { background: #4752C4; transform: translateY(-3px); box-shadow: 0 10px 25px rgba(88, 101, 242, 0.6); }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
+        </div>
+        <h1>Arizona <span>Staff Hub</span></h1>
+        <p>Авторизуйтесь через свой аккаунт Discord для доступа к панели управления модерацией.</p>
+        <a href="/login" class="btn-discord">Войти через Discord</a>
+    </div>
+</body>
+</html>
+"""
 
 MAIN_TEMPLATE = """
 <!DOCTYPE html>
@@ -117,11 +167,17 @@ MAIN_TEMPLATE = """
         
         .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 1.5px; font-weight: 700; }
         
-        .nav-links-container { display: flex; flex-direction: column; gap: 10px; }
+        .nav-links-container { display: flex; flex-direction: column; gap: 10px; flex: 1; }
         .nav-link { padding: 15px 20px; border-radius: 14px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 16px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
         .nav-link svg { width: 18px; height: 18px; fill: var(--text-muted); transition: 0.3s; }
         .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.01)); color: #fff; border-color: rgba(245, 158, 11, 0.25); transform: translateX(6px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.08); }
         .nav-link:hover svg, .nav-link.active svg { fill: var(--accent-primary); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+
+        .user-panel-bottom { border-top: 1px solid var(--border-color); padding-top: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .user-info-mini { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+        .user-avatar-mini { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--accent-primary); }
+        .logout-btn { color: var(--danger); text-decoration: none; font-size: 12px; font-weight: 700; padding: 6px 10px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; transition: 0.2s; }
+        .logout-btn:hover { background: rgba(239, 68, 68, 0.2); }
 
         /* Контент */
         .main-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 40px; z-index: 10; position: relative; }
@@ -139,7 +195,6 @@ MAIN_TEMPLATE = """
 
         .content-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
         
-        /* Кнопки фильтрации уровней сверху */
         .level-filters { display: flex; gap: 10px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; }
         .level-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); padding: 10px 18px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.3s; white-space: nowrap; }
         .level-btn:hover { border-color: rgba(245, 158, 11, 0.4); color: #fff; }
@@ -155,7 +210,6 @@ MAIN_TEMPLATE = """
         .avatar-stub { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #1a2333, #0f131d); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid var(--border-color); }
         .lvl-pill { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-primary); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; }
 
-        /* Магазин - расширенный дизайн */
         .shop-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
         .shop-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
@@ -170,14 +224,12 @@ MAIN_TEMPLATE = """
         .shop-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 18px; }
         .shop-price { font-size: 18px; font-weight: 800; color: var(--accent-primary); display: flex; align-items: center; gap: 6px; }
 
-        /* Обзор КПД (как на энвижне) */
         .overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
         .overview-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 24px; position: relative; overflow: hidden; }
         .overview-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; }
         .overview-value { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -1px; display: flex; align-items: baseline; gap: 8px; }
         .overview-sub { font-size: 12px; color: var(--success); margin-top: 6px; font-weight: 600; }
 
-        /* Кастомный селект */
         .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
         .custom-select { position: relative; display: flex; align-items: center; justify-content: space-between; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: #fff; transition: 0.3s; }
         .custom-select:hover { border-color: rgba(245, 158, 11, 0.5); }
@@ -207,12 +259,6 @@ MAIN_TEMPLATE = """
         .form-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(11, 14, 20, 0.8); }
         .form-submit { width: 100%; margin-top: 12px; padding: 15px; background: var(--accent-gradient); color: #000; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
         .form-submit:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(245,158,11,0.5); filter: brightness(1.05); }
-
-        .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 25px; }
-        .profile-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; text-align: center; }
-        .profile-avatar { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #f59e0b, #b45309); margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 32px; box-shadow: 0 0 25px var(--accent-glow); }
-        .history-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .history-item { background: var(--bg-base); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -249,6 +295,14 @@ MAIN_TEMPLATE = """
                 Магазин Prime
             </a>
         </div>
+        
+        <div class="user-panel-bottom">
+            <div class="user-info-mini">
+                <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png" class="user-avatar-mini" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                <span>{{ user.global_name or user.username }}</span>
+            </div>
+            <a href="/logout" class="logout-btn">Выйти</a>
+        </div>
     </div>
 
     <div class="main-container">
@@ -260,7 +314,6 @@ MAIN_TEMPLATE = """
                 <button class="btn-action" onclick="toggleModal('addModal', true)">+ Добавить модератора</button>
             </div>
             
-            <!-- Кнопки выбора уровней сверху -->
             <div class="level-filters">
                 <button class="level-btn active" onclick="filterLevel('all', this)">Все уровни</button>
                 <button class="level-btn" onclick="filterLevel('1', this)">1 Уровень</button>
@@ -419,26 +472,13 @@ MAIN_TEMPLATE = """
                     </div>
                     <div class="shop-footer">
                         <div class="shop-price">⭐ {{ item[2] }}</div>
-                        <button class="btn-action" onclick="alert('Для совершения покупки привяжите Discord аккаунт!')">Приобрести</button>
+                        <button class="btn-action" onclick="alert('Покупка успешна!')">Приобрести</button>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
 
-    </div>
-
-    <!-- МОДАЛКА: ПРОФИЛЬ МОДЕРАТОРА -->
-    <div class="modal" id="profileModal">
-        <div class="modal-content" style="width: 700px;">
-            <div class="modal-header">
-                <span id="profileTitle">Профиль модератора</span>
-                <button class="close-btn" onclick="toggleModal('profileModal', false)">&times;</button>
-            </div>
-            <div id="profileBody">
-                <!-- Заполняется динамически через JS -->
-            </div>
-        </div>
     </div>
 
     <!-- МОДАЛКА: Добавить модератора -->
@@ -498,16 +538,16 @@ MAIN_TEMPLATE = """
             </div>
             <form action="/add_inactive" method="POST">
                 <div class="form-group">
-                    <label class="form-label">Ваш Никнейм</label>
-                    <input type="text" name="moderator" class="form-input" required placeholder="Ваш никнейм в игре/дискорде...">
+                    <label class="form-label">Никнейм модератора</label>
+                    <input type="text" name="moderator" class="form-input" required placeholder="Ваш ник...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Причина</label>
-                    <input type="text" name="reason" class="form-input" required placeholder="Укажите причину неактива...">
+                    <input type="text" name="reason" class="form-input" required placeholder="Причина неактива...">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Сроки</label>
-                    <input type="text" name="dates" class="form-input" required placeholder="Например: 06.09 - 10.09">
+                    <input type="text" name="dates" class="form-input" required placeholder="Например: 07.09 - 10.09">
                 </div>
                 <button type="submit" class="form-submit">Отправить заявку</button>
             </form>
@@ -515,81 +555,20 @@ MAIN_TEMPLATE = """
     </div>
 
     <script>
-        // Фильтрация модераторов по уровню
-        function filterLevel(lvl, btnElement) {
-            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-
-            const rows = document.querySelectorAll('#moderatorsTableBody tr[data-lvl]');
-            rows.forEach(row => {
-                if (lvl === 'all' || row.getAttribute('data-lvl') === lvl) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
         }
 
-        // Открытие профиля модератора
-        function openProfile(modId) {
-            fetch('/api/moderator/' + modId)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.error) { alert(data.error); return; }
-                    
-                    let historyHtml = '';
-                    if(data.history && data.history.length > 0) {
-                        data.history.forEach(h => {
-                            historyHtml += `<div class="history-item"><span>${h[2]}</span><span style="color: var(--text-muted);">${h[3]}</span></div>`;
-                        });
-                    } else {
-                        historyHtml = '<div style="color: var(--text-muted); text-align: center; padding: 15px;">История пуста</div>';
-                    }
-
-                    let html = `
-                        <div class="profile-grid">
-                            <div class="profile-card">
-                                <div class="profile-avatar">👤</div>
-                                <h3 style="color: #fff; margin-bottom: 5px;">${data.username}</h3>
-                                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">${data.position}</p>
-                                <span class="lvl-pill">${data.lvl} УРОВЕНЬ</span>
-                            </div>
-                            <div>
-                                <h4 style="color: #fff; margin-bottom: 12px; font-size: 15px;">Редактирование показателей (Руководство)</h4>
-                                <form action="/update_stats" method="POST">
-                                    <input type="hidden" name="mod_id" value="${data.id}">
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                                        <div class="form-group" style="margin:0;">
-                                            <label class="form-label">Баны</label>
-                                            <input type="number" name="bans" class="form-input" value="${data.bans}">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label class="form-label">Муты</label>
-                                            <input type="number" name="mutes" class="form-input" value="${data.mutes}">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label class="form-label">Кики</label>
-                                            <input type="number" name="kicks" class="form-input" value="${data.kicks}">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label class="form-label">Предупреждения</label>
-                                            <input type="number" name="warns_count" class="form-input" value="${data.warns_count}">
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="form-submit" style="padding: 10px; margin-bottom: 20px;">Сохранить наказания</button>
-                                </form>
-                            </div>
-                        </div>
-                        <div style="margin-top: 25px;">
-                            <h4 style="color: #fff; margin-bottom: 12px; font-size: 15px;">История наказаний и покупок</h4>
-                            <div class="history-list">
-                                ${historyHtml}
-                            </div>
-                        </div>
-                    `;
-                    document.getElementById('profileBody').innerHTML = html;
-                    toggleModal('profileModal', true);
-                });
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) {
+                modal.classList.add('active');
+            } else {
+                modal.classList.remove('active');
+            }
         }
 
         function toggleCustomSelect(element) {
@@ -599,98 +578,37 @@ MAIN_TEMPLATE = """
 
         function selectOption(optionElement, value) {
             const wrapper = optionElement.closest('.custom-select-wrapper');
-            const selectBox = wrapper.querySelector('.custom-select');
-            const hiddenInput = wrapper.querySelector('#lvlInput');
-            
-            selectBox.querySelector('span').textContent = optionElement.textContent;
-            hiddenInput.value = value;
-            
-            selectBox.classList.remove('open');
+            const selectBox = wrapper.querySelector('.custom-select span');
+            selectBox.textContent = optionElement.textContent;
+            wrapper.querySelector('input[type="hidden"]').value = value;
+            wrapper.querySelector('.custom-select').classList.remove('open');
             wrapper.querySelector('.custom-options').classList.remove('open');
         }
 
-        window.addEventListener('click', function(e) {
-            if (!e.target.closest('.custom-select-wrapper')) {
-                document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
-                document.querySelectorAll('.custom-options').forEach(el => el.classList.remove('open'));
-            }
-        });
-
-        /* Скрипт летающих частиц */
-        const canvas = document.getElementById('particleCanvas');
-        const ctx = canvas.getContext('2d');
-        let particlesArray = [];
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        class Particle {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2.5 + 1;
-                this.speedX = (Math.random() - 0.5) * 0.6;
-                this.speedY = (Math.random() - 0.5) * 0.6;
-                this.opacity = Math.random() * 0.5 + 0.2;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                if (this.x < 0) this.x = canvas.width;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y < 0) this.y = canvas.height;
-                if (this.y > canvas.height) this.y = 0;
-            }
-            draw() {
-                ctx.fillStyle = `rgba(245, 158, 11, ${this.opacity})`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function initParticles() {
-            particlesArray = [];
-            let count = Math.floor((canvas.width * canvas.height) / 15000);
-            for (let i = 0; i < count; i++) {
-                particlesArray.push(new Particle());
-            }
-        }
-        initParticles();
-
-        function runAnimation() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particlesArray.forEach(p => {
-                p.update();
-                p.draw();
+        function filterLevel(lvl, btn) {
+            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const rows = document.querySelectorAll('#moderatorsTableBody tr[data-lvl]');
+            rows.forEach(row => {
+                if (lvl === 'all' || row.getAttribute('data-lvl') === lvl) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
             });
-            requestAnimationFrame(runAnimation);
-        }
-        runAnimation();
-
-        function switchTab(tabId, element) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            element.classList.add('active');
-        }
-
-        function toggleModal(modalId, open) {
-            const modal = document.getElementById(modalId);
-            if(open) modal.classList.add('active');
-            else modal.classList.remove('active');
         }
     </script>
 </body>
 </html>
 """
 
+# --- МАРШРУТЫ ПРИЛОЖЕНИЯ ---
+
 @app.route("/")
 def index():
+    if "user" not in session:
+        return render_template_string(LOGIN_TEMPLATE)
+    
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
     
@@ -704,65 +622,59 @@ def index():
     shop_items = cursor.fetchall()
     
     conn.close()
-    return render_template_string(MAIN_TEMPLATE, mods=mods, inactives=inactives, shop_items=shop_items)
+    
+    return render_template_string(MAIN_TEMPLATE, mods=mods, inactives=inactives, shop_items=shop_items, user=session["user"])
 
-@app.route("/api/moderator/<int:mod_id>")
-def api_moderator(mod_id):
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM moderators WHERE id = ?", (mod_id,))
-    mod = cursor.fetchone()
-    
-    if not mod:
-        conn.close()
-        return jsonify({"error": "Модератор не найден"}), 404
-        
-    cursor.execute("SELECT * FROM moderator_history WHERE moderator_id = ?", (mod_id,))
-    history = cursor.fetchall()
-    conn.close()
-    
+@app.route("/login")
+def login():
+    discord_login_url = f"https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}&redirect_uri={requests.utils.quote(REDIRECT_URI)}&response_type=code&scope=identify"
+    return redirect(discord_login_url)
+
+@app.route("/auth/callback")
+def auth_callback():
+    code = request.args.get("code")
+    if not code:
+        return "Ошибка авторизации: код не получен", 400
+
     data = {
-        "id": mod[0],
-        "discord_id": mod[1],
-        "username": mod[2],
-        "real_name": mod[3],
-        "lvl": mod[4],
-        "days_lvl": mod[5],
-        "days_all": mod[6],
-        "warnings": mod[7],
-        "prevs": mod[8],
-        "inactives": mod[9],
-        "points": mod[10],
-        "position": mod[11],
-        "bans": mod[12],
-        "mutes": mod[13],
-        "kicks": mod[14],
-        "warns_count": mod[15],
-        "history": history
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI
     }
-    return jsonify(data)
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-@app.route("/update_stats", methods=["POST"])
-def update_stats():
-    mod_id = request.form.get("mod_id")
-    bans = request.form.get("bans", 0)
-    mutes = request.form.get("mutes", 0)
-    kicks = request.form.get("kicks", 0)
-    warns_count = request.form.get("warns_count", 0)
-    
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE moderators 
-        SET bans = ?, mutes = ?, kicks = ?, warns_count = ?
-        WHERE id = ?
-    """, (bans, mutes, kicks, warns_count, mod_id))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('index'))
+    token_response = requests.post(f"{DISCORD_API_ENDPOINT}/oauth2/token", data=data, headers=headers)
+    token_json = token_response.json()
+
+    access_token = token_json.get("access_token")
+    if not access_token:
+        return "Не удалось получить токен доступа от Discord", 400
+
+    user_headers = {"Authorization": f"Bearer {access_token}"}
+    user_response = requests.get(f"{DISCORD_API_ENDPOINT}/users/@me", headers=user_headers)
+    user_data = user_response.json()
+
+    session["user"] = {
+        "id": user_data.get("id"),
+        "username": user_data.get("username"),
+        "global_name": user_data.get("global_name"),
+        "avatar": user_data.get("avatar")
+    }
+
+    return redirect(url_for("index"))
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("index"))
 
 @app.route("/add", methods=["POST"])
 def add_moderator():
+    if "user" not in session:
+        return redirect(url_for("index"))
+        
     username = request.form.get("username")
     discord_id = request.form.get("discord_id")
     real_name = request.form.get("real_name")
@@ -773,14 +685,18 @@ def add_moderator():
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO moderators (discord_id, username, real_name, lvl, days_lvl, days_all, warnings, prevs, inactives, points, position)
-        VALUES (?, ?, ?, ?, 0, 0, 0, 0, '0', 0, ?)
+        VALUES (?, ?, ?, ?, 0, 0, 0, 0, 'Нет', 0.0, ?)
     """, (discord_id, username, real_name, lvl, position))
     conn.commit()
     conn.close()
-    return redirect(url_for('index'))
+    
+    return redirect(url_for("index"))
 
 @app.route("/add_inactive", methods=["POST"])
 def add_inactive():
+    if "user" not in session:
+        return redirect(url_for("index"))
+        
     moderator = request.form.get("moderator")
     reason = request.form.get("reason")
     dates = request.form.get("dates")
@@ -789,12 +705,12 @@ def add_inactive():
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO inactives (moderator, reason, dates, status)
-        VALUES (?, ?, ?, ?)
-    """, (moderator, reason, dates, "На рассмотрении"))
+        VALUES (?, ?, ?, 'Ожидает')
+    """, (moderator, reason, dates))
     conn.commit()
     conn.close()
-    return redirect(url_for('index'))
+    
+    return redirect(url_for("index"))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True, port=5000)
