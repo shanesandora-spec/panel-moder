@@ -62,7 +62,6 @@ MAIN_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <title>Arizona Hub & Prime — Панель управления</title>
-    <!-- Подключаем премиальный современный шрифт Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -82,17 +81,21 @@ MAIN_TEMPLATE = """
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; position: relative; }
 
-        /* Живой фон с летающими частицами через Canvas */
         #particleCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 
         /* Сайдбар */
-        .sidebar { width: 270px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 28px; z-index: 10; backdrop-filter: blur(12px); }
+        .sidebar { width: 280px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 32px 24px; z-index: 10; backdrop-filter: blur(12px); }
         .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; letter-spacing: -0.3px; text-transform: uppercase; }
         .brand span { color: var(--accent-primary); text-shadow: 0 0 25px var(--accent-glow); }
         
-        .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 1.5px; font-weight: 700; }
-        .nav-link { padding: 13px 18px; border-radius: 14px; color: var(--text-muted); text-decoration: none; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
+        .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 1.5px; font-weight: 700; }
+        
+        /* Увеличенная и более просторная навигация */
+        .nav-links-container { display: flex; flex-direction: column; gap: 10px; }
+        .nav-link { padding: 15px 20px; border-radius: 14px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 16px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
+        .nav-link svg { width: 18px; height: 18px; fill: var(--text-muted); transition: 0.3s; }
         .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.01)); color: #fff; border-color: rgba(245, 158, 11, 0.25); transform: translateX(6px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.08); }
+        .nav-link:hover svg, .nav-link.active svg { fill: var(--accent-primary); filter: drop-shadow(0 0 8px var(--accent-glow)); }
 
         /* Контент */
         .main-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 40px; z-index: 10; position: relative; }
@@ -100,7 +103,7 @@ MAIN_TEMPLATE = """
         .top-bar { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px 32px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); backdrop-filter: blur(10px); }
         .top-title { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; letter-spacing: -0.5px; }
         
-        /* Супер-анимированные кнопки */
+        /* Анимированные кнопки */
         .btn-action { background: var(--accent-gradient); color: #000; font-weight: 700; padding: 13px 26px; border-radius: 14px; border: none; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; overflow: hidden; }
         .btn-action:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 30px rgba(245, 158, 11, 0.5); filter: brightness(1.1); }
         .btn-action:active { transform: translateY(-1px) scale(0.97); }
@@ -136,7 +139,21 @@ MAIN_TEMPLATE = """
         .shop-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
         .shop-price { font-size: 19px; font-weight: 800; color: var(--accent-primary); margin-bottom: 16px; }
 
-        /* Модальные окна с плавной анимацией появления */
+        /* Кастомный селект (замена системного) */
+        .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
+        .custom-select { position: relative; display: flex; align-items: center; justify-content: space-between; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: #fff; transition: 0.3s; }
+        .custom-select:hover { border-color: rgba(245, 158, 11, 0.5); }
+        .custom-select.open { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .custom-select::after { content: '▼'; font-size: 10px; color: var(--text-muted); transition: transform 0.3s; }
+        .custom-select.open::after { transform: rotate(180deg); color: var(--accent-primary); }
+        
+        .custom-options { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; display: none; z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); animation: fadeIn 0.2s ease; }
+        .custom-options.open { display: block; }
+        .custom-option { padding: 12px 16px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid rgba(26, 32, 44, 0.4); }
+        .custom-option:last-child { border-bottom: none; }
+        .custom-option:hover { background: rgba(245, 158, 11, 0.12); color: #fff; padding-left: 20px; }
+
+        /* Модальные окна */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); justify-content: center; align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; }
         .modal.active { display: flex; opacity: 1; }
         .modal-content { background: var(--bg-surface); border: 1px solid var(--border-color); width: 460px; padding: 35px; border-radius: 22px; box-shadow: 0 30px 60px rgba(0,0,0,0.8); transform: scale(0.92); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -148,24 +165,37 @@ MAIN_TEMPLATE = """
         
         .form-group { margin-bottom: 18px; }
         .form-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.8px; }
-        .form-input, .form-select { width: 100%; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .form-input:focus, .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(11, 14, 20, 0.8); }
+        .form-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .form-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(11, 14, 20, 0.8); }
         .form-submit { width: 100%; margin-top: 12px; padding: 15px; background: var(--accent-gradient); color: #000; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
         .form-submit:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(245,158,11,0.5); filter: brightness(1.05); }
     </style>
 </head>
 <body>
 
-    <!-- Живой фоновый Canvas для летающих частиц -->
     <canvas id="particleCanvas"></canvas>
 
     <div class="sidebar">
         <div class="brand">⚡ <span>Arizona Hub & Prime</span></div>
         <div class="menu-label">Навигация</div>
-        <a class="nav-link active" onclick="switchTab('moderation', this)">🛡️ Модерация</a>
-        <a class="nav-link" onclick="switchTab('stats', this)">📊 Статистика</a>
-        <a class="nav-link" onclick="switchTab('inactives', this)">⏳ Неактивы</a>
-        <a class="nav-link" onclick="switchTab('shop', this)">🛒 Магазин Prime</a>
+        <div class="nav-links-container">
+            <a class="nav-link active" onclick="switchTab('moderation', this)">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                Модерация
+            </a>
+            <a class="nav-link" onclick="switchTab('stats', this)">
+                <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>
+                Статистика
+            </a>
+            <a class="nav-link" onclick="switchTab('inactives', this)">
+                <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                Неактивы
+            </a>
+            <a class="nav-link" onclick="switchTab('shop', this)">
+                <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                Магазин Prime
+            </a>
+        </div>
     </div>
 
     <div class="main-container">
@@ -331,15 +361,17 @@ MAIN_TEMPLATE = """
                 </div>
                 <div class="form-group">
                     <label class="form-label">Уровень модерации</label>
-                    <select name="lvl" class="form-select">
-                        <option value="1">1 Уровень</option>
-                        <option value="2">2 Уровень</option>
-                        <option value="3">3 Уровень</option>
-                        <option value="4">4 Уровень</option>
-                        <option value="5">5 Уровень (Главный Модератор)</option>
-                        <option value="6">6 Уровень (Технический Специалист)</option>
-                        <option value="7">7 Уровень (Руководство Discord)</option>
-                    </select>
+                    <!-- Кастомный красивый селект вместо стандартного браузерного -->
+                    <div class="custom-select-wrapper" id="customSelect">
+                        <div class="custom-select" onclick="toggleCustomSelect(this)">1 Уровень — Модератор</div>
+                        <div class="custom-options">
+                            <div class="custom-option" onclick="selectOption(this, '1')">1 Уровень — Модератор</div>
+                            <div class="custom-option" onclick="selectOption(this, '2')">2 Уровень — Старший Модератор</div>
+                            <div class="custom-option" onclick="selectOption(this, '3')">3 Уровень — Куратор</div>
+                            <div class="custom-option" onclick="selectOption(this, '4')">4 Уровень — Заместитель Главного Модератора</div>
+                        </div>
+                        <input type="hidden" name="lvl" id="lvlInput" value="1">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Должность / Роль</label>
@@ -376,7 +408,32 @@ MAIN_TEMPLATE = """
     </div>
 
     <script>
-        /* Скрипт для анимированных летающих частиц на Canvas */
+        /* Скрипт для кастомного селекта уровня */
+        function toggleCustomSelect(element) {
+            element.classList.toggle('open');
+            element.nextElementSibling.classList.toggle('open');
+        }
+
+        function selectOption(optionElement, value) {
+            const wrapper = optionElement.closest('.custom-select-wrapper');
+            const selectBox = wrapper.querySelector('.custom-select');
+            const hiddenInput = wrapper.querySelector('#lvlInput');
+            
+            selectBox.textContent = optionElement.textContent;
+            hiddenInput.value = value;
+            
+            selectBox.classList.remove('open');
+            wrapper.querySelector('.custom-options').classList.remove('open');
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.custom-select-wrapper')) {
+                document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+                document.querySelectorAll('.custom-options').forEach(el => el.classList.remove('open'));
+            }
+        });
+
+        /* Скрипт летающих частиц */
         const canvas = document.getElementById('particleCanvas');
         const ctx = canvas.getContext('2d');
         let particlesArray = [];
