@@ -6,9 +6,11 @@ import requests
 
 # --- НАСТРОЙКИ DISCORD OAUTH2 ---
 CLIENT_ID = "1545765992582479872"
-CLIENT_SECRET = "ТВОЙ_CLIENT_SECRET"  # Вставь свой Client Secret со скриншота
-REDIRECT_URI = "http://localhost:5000/auth/callback"
-DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
+CLIENT_SECRET = "ТВОЙ_CLIENT_SECRET"
+
+# Автоматически определяем, локально мы или на Render
+BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:5000")
+REDIRECT_URI = f"{BASE_URL}/auth/callback"
 
 # --- БАЗА ДАННЫХ ---
 def init_db():
