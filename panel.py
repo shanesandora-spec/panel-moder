@@ -65,13 +65,13 @@ MAIN_TEMPLATE = """
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #040507;
-            --bg-surface: #0b0e14;
-            --bg-card: #10141d;
-            --border-color: #1a202c;
+            --bg-base: #07090e;
+            --bg-surface: #0f131d;
+            --bg-card: #151a26;
+            --border-color: #21293a;
             --accent-primary: #f59e0b;
             --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-            --accent-glow: rgba(245, 158, 11, 0.3);
+            --accent-glow: rgba(245, 158, 11, 0.25);
             --text-main: #f8fafc;
             --text-muted: #64748b;
             --success: #10b981;
@@ -83,14 +83,15 @@ MAIN_TEMPLATE = """
 
         #particleCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 
-        /* Сайдбар */
-        .sidebar { width: 280px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 32px 24px; z-index: 10; backdrop-filter: blur(12px); }
-        .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; letter-spacing: -0.3px; text-transform: uppercase; }
-        .brand span { color: var(--accent-primary); text-shadow: 0 0 25px var(--accent-glow); }
+        /* Сайдбар премиум */
+        .sidebar { width: 280px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 32px 24px; z-index: 10; backdrop-filter: blur(16px); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+        .brand { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 40px; display: flex; align-items: center; gap: 12px; letter-spacing: -0.3px; text-transform: uppercase; }
+        .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b, #b45309); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px var(--accent-glow); }
+        .brand span { color: var(--accent-primary); }
         
         .menu-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 1.5px; font-weight: 700; }
         
-        /* Увеличенная и более просторная навигация */
+        /* Просторная навигация */
         .nav-links-container { display: flex; flex-direction: column; gap: 10px; }
         .nav-link { padding: 15px 20px; border-radius: 14px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 16px; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; }
         .nav-link svg { width: 18px; height: 18px; fill: var(--text-muted); transition: 0.3s; }
@@ -124,11 +125,11 @@ MAIN_TEMPLATE = """
         /* Таблицы */
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
         th { color: var(--text-muted); font-weight: 700; padding: 14px 16px; border-bottom: 1px solid var(--border-color); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-        td { padding: 18px 16px; border-bottom: 1px solid rgba(26, 32, 44, 0.5); color: #cbd5e1; }
+        td { padding: 18px 16px; border-bottom: 1px solid rgba(33, 41, 58, 0.5); color: #cbd5e1; }
         tr:hover td { background-color: rgba(255, 255, 255, 0.015); }
         
         .user-block { display: flex; align-items: center; gap: 14px; font-weight: 600; color: #fff; }
-        .avatar-stub { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #1a202c, #10141d); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid var(--border-color); }
+        .avatar-stub { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #1a2333, #0f131d); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid var(--border-color); }
         .lvl-pill { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-primary); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; }
 
         /* Магазин */
@@ -139,17 +140,28 @@ MAIN_TEMPLATE = """
         .shop-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
         .shop-price { font-size: 19px; font-weight: 800; color: var(--accent-primary); margin-bottom: 16px; }
 
-        /* Кастомный селект (замена системного) */
+        /* Кастомный селект без скроллбара, с плавными анимациями */
         .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
         .custom-select { position: relative; display: flex; align-items: center; justify-content: space-between; background: var(--bg-base); border: 1px solid var(--border-color); padding: 13px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: #fff; transition: 0.3s; }
         .custom-select:hover { border-color: rgba(245, 158, 11, 0.5); }
         .custom-select.open { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .custom-select::after { content: '▼'; font-size: 10px; color: var(--text-muted); transition: transform 0.3s; }
-        .custom-select.open::after { transform: rotate(180deg); color: var(--accent-primary); }
+        .custom-select span.arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .custom-select.open span.arrow { transform: rotate(180deg); color: var(--accent-primary); }
         
-        .custom-options { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow-y: auto; max-height: 220px; display: none; z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); animation: fadeIn 0.2s ease; }
-        .custom-options.open { display: block; }
-        .custom-option { padding: 12px 16px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid rgba(26, 32, 44, 0.4); }
+        .custom-options { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; display: none; z-index: 50; box-shadow: 0 20px 40px rgba(0,0,0,0.7); overflow: hidden; opacity: 0; transform: translateY(-8px); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+        .custom-options.open { display: block; opacity: 1; transform: translateY(0); }
+        
+        .custom-option { padding: 12px 16px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: all 0.2s ease; border-bottom: 1px solid rgba(33, 41, 58, 0.4); opacity: 0; transform: translateY(-4px); }
+        .custom-options.open .custom-option { opacity: 1; transform: translateY(0); }
+        /* Плавная каскадная анимация пунктов списка */
+        .custom-options.open .custom-option:nth-child(1) { transition-delay: 0.03s; }
+        .custom-options.open .custom-option:nth-child(2) { transition-delay: 0.06s; }
+        .custom-options.open .custom-option:nth-child(3) { transition-delay: 0.09s; }
+        .custom-options.open .custom-option:nth-child(4) { transition-delay: 0.12s; }
+        .custom-options.open .custom-option:nth-child(5) { transition-delay: 0.15s; }
+        .custom-options.open .custom-option:nth-child(6) { transition-delay: 0.18s; }
+        .custom-options.open .custom-option:nth-child(7) { transition-delay: 0.21s; }
+
         .custom-option:last-child { border-bottom: none; }
         .custom-option:hover { background: rgba(245, 158, 11, 0.12); color: #fff; padding-left: 20px; }
 
@@ -176,7 +188,12 @@ MAIN_TEMPLATE = """
     <canvas id="particleCanvas"></canvas>
 
     <div class="sidebar">
-        <div class="brand">⚡ <span>Arizona Hub & Prime</span></div>
+        <div class="brand">
+            <div class="brand-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            Arizona <span>Hub & Prime</span>
+        </div>
         <div class="menu-label">Навигация</div>
         <div class="nav-links-container">
             <a class="nav-link active" onclick="switchTab('moderation', this)">
@@ -361,17 +378,20 @@ MAIN_TEMPLATE = """
                 </div>
                 <div class="form-group">
                     <label class="form-label">Уровень модерации</label>
-                    <!-- Кастомный селект со всеми 7 уровнями -->
+                    <!-- Кастомный селект с новыми уровнями и единой плавной анимацией -->
                     <div class="custom-select-wrapper" id="customSelect">
-                        <div class="custom-select" onclick="toggleCustomSelect(this)">1 Уровень — Модератор</div>
+                        <div class="custom-select" onclick="toggleCustomSelect(this)">
+                            <span>1 Уровень — Модератор</span>
+                            <span class="arrow">▼</span>
+                        </div>
                         <div class="custom-options">
                             <div class="custom-option" onclick="selectOption(this, '1')">1 Уровень — Модератор</div>
                             <div class="custom-option" onclick="selectOption(this, '2')">2 Уровень — Старший Модератор</div>
                             <div class="custom-option" onclick="selectOption(this, '3')">3 Уровень — Куратор</div>
                             <div class="custom-option" onclick="selectOption(this, '4')">4 Уровень — Заместитель Главного Модератора</div>
-                            <div class="custom-option" onclick="selectOption(this, '5')">5 Уровень — Главный Модератор</div>
-                            <div class="custom-option" onclick="selectOption(this, '6')">6 Уровень — Заместитель Главного Администратора</div>
-                            <div class="custom-option" onclick="selectOption(this, '7')">7 Уровень — Главный Администратор</div>
+                            <div class="custom-option" onclick="selectOption(this, '5')">5 Уровень — Главный Администратор</div>
+                            <div class="custom-option" onclick="selectOption(this, '6')">6 Уровень — Технический специалист</div>
+                            <div class="custom-option" onclick="selectOption(this, '7')">7 Уровень — Руководство Discord</div>
                         </div>
                         <input type="hidden" name="lvl" id="lvlInput" value="1">
                     </div>
@@ -422,7 +442,7 @@ MAIN_TEMPLATE = """
             const selectBox = wrapper.querySelector('.custom-select');
             const hiddenInput = wrapper.querySelector('#lvlInput');
             
-            selectBox.textContent = optionElement.textContent;
+            selectBox.querySelector('span').textContent = optionElement.textContent;
             hiddenInput.value = value;
             
             selectBox.classList.remove('open');
@@ -484,13 +504,23 @@ MAIN_TEMPLATE = """
 
         function animateParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particlesArray.forEach(p => {
+            particlesArray.px ? null : particlesArray.forEach(p => {
                 p.update();
                 p.draw();
             });
             requestAnimationFrame(animateParticles);
         }
-        animateParticles();
+        
+        // Исправленный цикл анимации частиц
+        function runAnimation() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particlesArray.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(runAnimation);
+        }
+        runAnimation();
 
         function switchTab(tabId, element) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
