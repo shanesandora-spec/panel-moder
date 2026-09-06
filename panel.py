@@ -16,9 +16,6 @@ DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
 BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:5000")
 REDIRECT_URI = f"{BASE_URL}/auth/callback"
 
-# Список администраторов (Discord ID), имеющих расширенные права
-DEVELOPER_IDS = ["123456789012345678"] 
-
 # --- ИНИЦИАЛИЗАЦИЯ И РАСШИРЕНИЕ БАЗЫ ДАННЫХ (SQLite) ---
 def init_db():
     conn = sqlite3.connect('database.db')
@@ -744,19 +741,36 @@ def auth_callback():
         "code": code,
         "redirect_uri": REDIRECT_URI,
     }
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    
+    # Добавлен User-Agent для обхода Cloudflare защиты (Error 1015 / 429)
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "ArizonaStaffHub (https://github.com/, v4.2)"
+    }
 
-    token_response = requests.post(f"{DISCORD_API_ENDPOINT}/oauth2/token", data=data, headers=headers)
+    try:
+        token_response = requests.post(f"{DISCORD_API_ENDPOINT}/oauth2/token", data=data, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        return f"Ошибка соединения с Discord API: {e}", 500
+
+    if token_response.status_code == 429:
+        return "Слишком много запросов к Discord (Rate Limit). Попробуйте обновить страницу через пару минут.", 429
+
     if token_response.status_code != 200:
-        return f"Ошибка верификации токена в Discord API: {token_response.text}", 500
+        return f"Ошибка верификации токена в Discord API ({token_response.status_code}): {token_response.text}", 500
 
     token_json = token_response.json()
     access_token = token_json.get("access_token")
 
     user_response = requests.get(
         f"{DISCORD_API_ENDPOINT}/users/@me",
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "ArizonaStaffHub (https://github.com/, v4.2)"
+        },
+        timeout=10
     )
+    
     if user_response.status_code != 200:
         return "Ошибка получения пользовательских данных из профиля Discord.", 500
 
